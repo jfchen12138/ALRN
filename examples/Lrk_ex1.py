@@ -232,12 +232,59 @@ def main():
                 
             )
         save_pickle(result, os.path.join(model_save_path, result_name))
+
+
         
     model.load_state_dict(torch.load(os.path.join(MODEL_PATH, model_name)))
     model.eval()
     val_metric = validate_epoch_burgers(model, metric_func, valid_loader, device)
     print(f'The final value of rank ：{model.v.shape[0]}')
     print(f"\nBest model's validation metric in this run: {val_metric}")
+    
+    model.load_state_dict(torch.load(os.path.join(MODEL_PATH, model_name)))
+    model.eval()
+    val_metric = validate_epoch_burgers(model, metric_func, valid_loader, device)
+    print(f'The final value of rank ：{model.v.shape[0]}')
+    print(f"\nBest model's validation metric in this run: {val_metric}")
+
+    # # ========== L-BFGS 精调阶段 ==========
+    # print("\nStarting L-BFGS optimization...\n")
+    # loss_history = lbfgs_finetune_burgers(model, loss_func, train_loader, device, epoch=100)
+    
+
+    # adam_loss = result["loss_train"][:,0]
+    
+    # lbfgs_loss = np.array(loss_history)
+
+    # total_steps = len(adam_loss) + len(lbfgs_loss)
+    # all_steps = np.arange(total_steps)
+
+    # combined_loss = np.concatenate([adam_loss, lbfgs_loss])
+
+    # # Plot
+    # plt.figure(figsize=(10, 6))
+    # plt.plot(all_steps[:len(adam_loss)], adam_loss, 'g-', label='Adam', linewidth=2)
+    # plt.plot(all_steps[len(adam_loss)-1:], combined_loss[len(adam_loss)-1:], 'b--', label='LBFGS', linewidth=2)
+
+    # plt.xlabel("Training Step")
+    # plt.ylabel("Loss")
+    # plt.title("Combined Loss Curve: Adam and LBFGS")
+    # plt.legend()
+    # plt.grid(True)
+    # plt.tight_layout()
+    # plt.savefig("loss curve.png")
+
+
+
+  
+    # # 重新验证模型
+    # model.eval()
+    # val_metric_lbfgs = validate_epoch_burgers(model, metric_func, valid_loader, device)
+    # print(f"\nAfter LBFGS refinement, validation metric: {val_metric_lbfgs}")
+
+    # # 保存精调后的模型
+    # torch.save(model.state_dict(), os.path.join(MODEL_PATH, model_name.replace(".pt", "_lbfgs.pt")))
+    # print(f"Refined model saved to {model_name.replace('.pt', '_lbfgs.pt')}")
     
 def annealing_cos(start, end, pct):  
     cos_out = math.cos(math.pi * pct) + 1

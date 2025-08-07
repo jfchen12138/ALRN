@@ -2,22 +2,26 @@ from libs_path import *
 from libs import *
 from libs.ns_lite import *
 import time
-torch.cuda.set_device(2)
+torch.cuda.set_device(1)
 get_seed(1127802)
+
 
 def main():
     attn_type = "Lrk"
     k = 100
-    thred = 1e-2
-#     alpha = 0.3
+    thred = 2e-1
+#     alpha = 0.1
+    # beta = 0.01
     beta = 0.01
     epsilon = 1e-4
 
-    data_path = os.path.join(DATA_PATH, 'ns_V1e-3_N5000_T50.mat')
+    data_path = os.path.join(DATA_PATH, 'ns_V1e-5_N1200_T20_R64.mat')
     train_dataset = NavierStokesDatasetLite(data_path=data_path,
                                             train_data=True,)
     valid_dataset = NavierStokesDatasetLite(data_path=data_path,
                                             train_data=False,)
+    
+  
     batch_size = 2
     train_loader = DataLoader(train_dataset,
                               batch_size=batch_size,
@@ -35,6 +39,7 @@ def main():
     print('='*20, 'Data loader batch', '='*20)
     for key in sample.keys():
         print(key, "\t", sample[key].shape)
+        
 
     print('='*(40 + len('Data loader batch')+2))
 
@@ -83,7 +88,7 @@ def main():
     print(
             f"\nModel: {model.__name__}\t Number of params: {get_num_params(model)}")
 
-    model_name, result_name = get_model_name(model='ns',
+    model_name, result_name = get_model_name(model=f'ns_V1e-5',
                                                  num_encoder_layers=config['num_encoder_layers'],
                                                  n_hidden=config['n_hidden'],
                                                  attention_type=config['attention_type'],

@@ -1409,7 +1409,17 @@ class WeightedL2Loss2d(_WeightedLoss):
                 (K*targets_prime.pow(2)).mean(dim=(1, 2, 3)) + self.eps
         else:
             targets_prime_norm = 1
+            
+        # diff = torch.abs(preds - targets)
+        # max_diff = torch.max(diff)
 
+        # if torch.isnan(max_diff):
+        #     num_nan_preds = torch.isnan(preds).sum().item()
+        #     num_nan_targets = torch.isnan(targets).sum().item()
+        #     print(f"max(abs(preds - targets)) is NaN!")
+        #     print(f"Number of NaNs in preds: {num_nan_preds}")
+        #     print(f"Number of NaNs in targets: {num_nan_targets}")
+        
         loss = self.beta*((preds - targets).pow(2)
                           ).mean(dim=(1, 2))/target_norm
 
@@ -1446,6 +1456,7 @@ class WeightedL2Loss2d(_WeightedLoss):
                 [0.0], requires_grad=True, device=preds.device)
         norms = dict(L2=target_norm,
                      H1=targets_prime_norm)
+       
 
         return loss, regularizer, metric, norms
 

@@ -1159,10 +1159,7 @@ class SimpleTransformer(nn.Module):
             self.s = Parameter(0.01*torch.randn(self.seq_len, self.k))
             self.d = Parameter(0.01*torch.randn(self.k, self.seq_len))
         
-#     if self.attention_type == "Lrk":
-#             self.v = Parameter(0.1*torch.rand(self.k))
-#             self.s = Parameter(0.01*torch.randn(int(self.hidden//self.n_head+self.pos_dim), self.k))
-#             self.d = Parameter(0.01*torch.randn(int(self.hidden//self.n_head+self.pos_dim), self.k))
+
          
         
     def forward(self, node, edge, pos, grid=None, weight=None):

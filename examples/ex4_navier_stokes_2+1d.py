@@ -8,7 +8,6 @@ from libs.ns_lite import *
 import time
 torch.cuda.set_device(3)
 get_seed(1127802)
-
 attn_type = "galerkin"
 k = 100
 thred = 1e-2
@@ -16,7 +15,8 @@ thred = 1e-2
 beta = 0.01
 epsilon = 1e-4
 
-data_path = os.path.join(DATA_PATH, 'ns_V1e-3_N5000_T50.mat')
+data_path = os.path.join(DATA_PATH, 'ns_V1e-5_N1200_T20_R64.mat')
+
 train_dataset = NavierStokesDatasetLite(data_path=data_path,
                                         train_data=True,)
 valid_dataset = NavierStokesDatasetLite(data_path=data_path,
@@ -73,6 +73,7 @@ config = defaultdict(lambda: None,
                      debug=False,
                      )
 
+# config["dim_feedforward"]=288
 
 config["seq_len"] = sample['pos'].shape[1]
 config["k"] = k
@@ -86,7 +87,7 @@ model = model.to(device)
 print(
         f"\nModel: {model.__name__}\t Number of params: {get_num_params(model)}")
 
-model_name, result_name = get_model_name(model='ns',
+model_name, result_name = get_model_name(model='ns_V1e-5',
                                              num_encoder_layers=config['num_encoder_layers'],
                                              n_hidden=config['n_hidden'],
                                              attention_type=config['attention_type'],
@@ -98,7 +99,7 @@ print(f"Saving model and result in {MODEL_PATH}/{model_name}\n")
                                              
                                          
                                          
-epochs = 100
+epochs = 500
 lr = 5e-4
 h = 1/64
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -128,54 +129,58 @@ result = run_train(model, loss_func, metric_func,
 end = time.time()
 mean_time = (end-start)/epochs
     
-
+model.load_state_dict(torch.load(os.path.join(MODEL_PATH, model_name)))
+torch.save(model,os.path.join(MODEL_PATH, model_name))
+model.eval()
+val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
+print(f"\nBest model's validation metric in this run: {val_metric}")
 path = os.path.join(SRC_ROOT, 'high_hidden_result')
-train_time_path = os.path.join(path, "ns_%s_training_time_per_epoch.npy"%config["attention_type"])
-np.save(train_time_path, mean_time)
+# train_time_path = os.path.join(path, "ns_%s_training_time_per_epoch.npy"%config["attention_type"])
+# np.save(train_time_path, mean_time)
 
-if config["attention_type"] == "Lrk":
-    param = torch.load(os.path.join(MODEL_PATH, model_name))
-    model.load_state_dict(param)
-    model.eval()
-    val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
-    print(f"\nBest model's validation metric in this run: {val_metric}")
-    v_temp = param["v"]
-    v = v_temp**2
-    print("v", torch.sort(v, descending=True))
-    param["v"] = param["v"][v>epsilon]
-    param["s"] = param["s"][:, v>epsilon]
-    param["d"] = param["d"][v>epsilon, :]
-    k = len(param["v"])
-    config["k"] = k
-    print("the value of k after updating:", k)
-
-
-    del model
-    model = FourierTransformer2DLite(**config)
-    model = model.cuda()
-    model.load_state_dict(param)
-    torch.save(model, os.path.join(MODEL_PATH, model_name))
-
-    model.eval()
-    val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
-    print(f" model's validation metric after pruning in this run: {val_metric}")
-
-else:
-
-    model.load_state_dict(torch.load(os.path.join(MODEL_PATH, model_name)))
-    torch.save(model,os.path.join(MODEL_PATH, model_name))
-    model.eval()
-    val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
-    print(f"\nBest model's validation metric in this run: {val_metric}")
+# if config["attention_type"] == "Lrk":
+#     param = torch.load(os.path.join(MODEL_PATH, model_name))
+#     model.load_state_dict(param)
+#     model.eval()
+#     val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
+#     print(f"\nBest model's validation metric in this run: {val_metric}")
+#     v_temp = param["v"]
+#     v = v_temp**2
+#     print("v", torch.sort(v, descending=True))
+#     param["v"] = param["v"][v>epsilon]
+#     param["s"] = param["s"][:, v>epsilon]
+#     param["d"] = param["d"][v>epsilon, :]
+#     k = len(param["v"])
+#     config["k"] = k
+#     print("the value of k after updating:", k)
 
 
+#     del model
+#     model = FourierTransformer2DLite(**config)
+#     model = model.cuda()
+#     model.load_state_dict(param)
+#     torch.save(model, os.path.join(MODEL_PATH, model_name))
 
-# training_curve_path = os.path.join(path, "ns_%s_training_loss.npy"%config["attention_type"])
-# valid_curve_path = os.path.join(path, "ns_%s_valid_loss.npy"%config["attention_type"])
+#     model.eval()
+#     val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
+#     print(f" model's validation metric after pruning in this run: {val_metric}")
+
+# else:
+
+#     model.load_state_dict(torch.load(os.path.join(MODEL_PATH, model_name)))
+#     torch.save(model,os.path.join(MODEL_PATH, model_name))
+#     model.eval()
+#     val_metric = validate_epoch_ns(model, metric_func, valid_loader, device)
+#     print(f"\nBest model's validation metric in this run: {val_metric}")
 
 
-train_loss = result["loss_train"]
-val_loss = result["loss_val"]
+
+# # training_curve_path = os.path.join(path, "ns_%s_training_loss.npy"%config["attention_type"])
+# # valid_curve_path = os.path.join(path, "ns_%s_valid_loss.npy"%config["attention_type"])
+
+
+# train_loss = result["loss_train"]
+# val_loss = result["loss_val"]
 # np.save(training_curve_path, train_loss)
 # np.save(valid_curve_path, val_loss)
 
@@ -191,7 +196,7 @@ if config["attention_type"] == "fourier":
         out = out_['attn_weights']
 
 
-    eigenvalue_path = os.path.join(path, 'ns attention')
+    eigenvalue_path = os.path.join(path, 'ns V1e-5_T20 attention')
     torch.save(out, eigenvalue_path) 
 
 

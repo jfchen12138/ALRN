@@ -40,6 +40,7 @@ class NavierStokesDatasetLite(Dataset):
         '''
         self.data_path = data_path
         self.n_grid = 64  # finest resolution along x-, y- dim
+    
         self.h = 1/self.n_grid
         self.train_data = train_data
         self.time_steps_input = time_steps_input
@@ -142,7 +143,6 @@ class FourierTransformer2DLite(nn.Module):
                 v = torch.abs(self.v)
             if label =="pow":
                 v = self.v**2
-        
         node = torch.cat([node.view(bsz, -1, input_dim), pos],
                          dim=-1)
         x = self.feat_extract(node, edge)
@@ -167,6 +167,7 @@ class FourierTransformer2DLite(nn.Module):
 
         x = self.dpo(x)
         x = x.view(bsz, n_grid, n_grid, -1)
+        # print("test x:", x.shape)
         x = self.regressor(x, grid=grid)
 
         return dict(preds=x,
@@ -247,7 +248,9 @@ def train_batch_ns(model, loss_func, data, optimizer, lr_scheduler, device, grad
     for t in range(steps):
         out_ = model(x, None, pos=pos, grid=grid)
         u_pred = out_['preds']
+
         u_step = u[..., t:t+1]
+    
         gradu_step = gradu[..., t:t+1]
 
         # out is (b, n, n, 1)
@@ -271,8 +274,16 @@ def train_batch_ns(model, loss_func, data, optimizer, lr_scheduler, device, grad
     loss_total = loss_total/steps + norm 
 
     loss_total.backward()
+    
+
+    
     nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+    
+
+    
     optimizer.step()
+    
+        
     if lr_scheduler:
         lr_scheduler.step()
     u_preds = torch.cat(u_preds, dim=-1).detach()

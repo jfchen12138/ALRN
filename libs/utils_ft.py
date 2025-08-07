@@ -441,7 +441,7 @@ def showsurf(x, y, z, **kwargs):
     fig.show()
 
 
-def showcontour(z, **kwargs):
+def showcontour(z, save_path=None, **kwargs):
     '''
     show 2D solution z of its contour
     '''
@@ -451,7 +451,7 @@ def showcontour(z, **kwargs):
                        line_width=0.1,
                        contours=dict(
                            coloring='heatmap',
-                           #    showlabels=True,
+                              showlabels=True,
                        )
                        )
     fig = go.Figure(data=uplot,
@@ -470,6 +470,10 @@ def showcontour(z, **kwargs):
         fig.update_layout(margin=dict(l=0, r=0, t=0, b=0),
                           **kwargs)
     fig.show()
+    if save_path:
+        save_full_path = f"{save_path}.eps"
+        fig.write_image(save_full_path, format="eps")
+        print(f"The figure have been saved: {save_path}")
     return fig
 
 
@@ -759,6 +763,53 @@ def train_batch_burgers(model, loss_func, data, optimizer, lr_scheduler, device,
 
     return (loss.item(),(loss1+reg).item(), reg.item(), ortho.item(), norm.item()), u_pred, up_pred
 
+# def lbfgs_finetune_burgers(model, loss_func, train_loader, device, grad_clip=0.999, epoch=50):
+#     optimizer = torch.optim.LBFGS(
+#         model.parameters(),
+#         lr=1.0,
+#         max_iter=20,
+#         history_size=10,
+#         line_search_fn='strong_wolfe'
+#         )
+#     loss_history = []
+#     for i in range(epoch):
+#         model.train()
+#         data = next(iter(train_loader))  # Use full-batch for LBFGS
+#         data = {k: v.to(device) for k, v in data.items()}
+
+#         def closure():
+#             optimizer.zero_grad()
+#             x, edge = data["node"], data["edge"]
+#             pos, grid = data['pos'], data['grid']
+#             target = data["target"]
+#             u, up = target[..., 0], target[..., 1]
+
+#             out_ = model(x, edge, pos, grid)
+#             if isinstance(out_, dict):
+#                 out = out_['preds']
+#                 y_latent = out_['preds_latent']
+#             elif isinstance(out_, tuple):
+#                 out = out_[0]
+#                 y_latent = None
+
+#             if out.size(2) == 2:
+#                 u_pred, up_pred = out[..., 0], out[..., 1]
+#                 loss, _, _, _ = loss_func(u_pred, u, up_pred, up, preds_latent=y_latent)
+#             elif out.size(2) == 1:
+#                 u_pred = out[..., 0]
+#                 loss, _, _, _ = loss_func(u_pred, u, targets_prime=up, preds_latent=y_latent)
+
+#             loss.backward()
+#             torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+#             # if verbose:
+#             #     print(f"LBFGS step loss: {loss.item():.4e}")
+#             return loss
+
+#         loss = optimizer.step(closure)
+#         print("✔ LBFGS finetuning complete.")
+#     return loss_history
+
+
 
 def validate_epoch_burgers(model, metric_func, valid_loader, device):
     model.eval()
@@ -906,7 +957,7 @@ def run_train(model, loss_func, metric_func,
     start_epoch = start_epoch
     end_epoch = start_epoch + epochs
     best_val_metric = -np.inf if mode == 'max' else np.inf
-    best_val_epoch = None
+    best_val_epoch = 0
     save_mode = 'state_dict' if save_mode is None else save_mode
     stop_counter = 0
     is_epoch_scheduler = any(s in str(lr_scheduler.__class__)
@@ -962,6 +1013,7 @@ def run_train(model, loss_func, metric_func,
 
             loss_val.append(val_result["metric"])
             val_metric = val_result["metric"].sum()
+            
             if mode == 'max':
                 if val_metric > best_val_metric:
                     best_val_epoch = epoch
@@ -970,6 +1022,7 @@ def run_train(model, loss_func, metric_func,
                 else:
                     stop_counter += 1
             else:
+                
                 if val_metric < best_val_metric:
                     best_val_epoch = epoch
                     best_val_metric = val_metric
@@ -1036,17 +1089,18 @@ def run_train(model, loss_func, metric_func,
                 pbar_ep.set_description(desc_ep)
                 pbar_ep.update()
 
-            result = dict(
-                best_val_epoch=best_val_epoch,
-                best_val_metric=best_val_metric,
-                loss_train=np.asarray(loss_train),
-                loss_val=np.asarray(loss_val),
-                lr_history=np.asarray(lr_history),
-                # best_model=best_model_state_dict,
-                optimizer_state=optimizer.state_dict()
-                
-            )
-            save_pickle(result, os.path.join(model_save_path, result_name))
+        result = dict(
+            best_val_epoch=best_val_epoch,
+            best_val_metric=best_val_metric,
+            loss_train=np.asarray(loss_train),
+            loss_val=np.asarray(loss_val),
+            lr_history=np.asarray(lr_history),
+            # best_model=best_model_state_dict,
+            optimizer_state=optimizer.state_dict(),
+            model = model
+            
+        )
+        save_pickle(result, os.path.join(model_save_path, result_name))
     return result
 
 
